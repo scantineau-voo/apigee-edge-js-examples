@@ -23,7 +23,7 @@
     "@peculiar/x509": "^1.2.2",
     "@xmldom/xmldom": "^0.7.5",
     "adm-zip": "^0.4.16",
-    "apigee-edge-js": "^0.4.36",
+    "apigee-edge-js-sca": "^0.4.36-SCA",
     "debug": "^4.3.3",
     "mkdirp": "1.0.3",
     "netrc": "0.1.3",
