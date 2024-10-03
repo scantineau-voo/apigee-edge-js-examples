@@ -76,10 +76,12 @@ function proxyExporter(org) {
 }
 
 const exportLatestRevisionOfMatchingProxies = (org, pattern) =>
- org.proxies.get({})
+ org.sharedflows.get({})
     .then(result => {
       // match
-      result = result.filter( a => a.match(new RegExp(pattern)) );
+      console.log(result);
+      common.logWrite(sprintf('found %d proxies', result.sharedFlows.length));
+      result = result.sharedFlows.map(a => a.name).filter( a => a.match(new RegExp(pattern)) );
       let fn1 =
         (p, name) => p.then( acc => exportLatestRevisionOfProxy(org, name).then( r => [...acc, r]));
       return result.reduce(fn1, Promise.resolve([]));

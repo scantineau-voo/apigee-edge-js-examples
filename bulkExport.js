@@ -87,8 +87,10 @@ function exportMatchingArtifacts(org, {pattern, env}) {
 
   return org[collection].get({})
     .then( proxies => {
+//        console.log(proxies)
       if (re1) {
         proxies = proxies.filter( a => a.match(re1) );
+//        proxies = proxies["sharedFlows"].map(a => a.name).filter( a => a.match(re1) );
       }
       let finder = (env) ? findDeployedRevision : findLatestRevision;
 

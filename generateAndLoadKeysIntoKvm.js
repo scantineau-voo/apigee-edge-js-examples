@@ -29,7 +29,7 @@ const apigeejs = require('apigee-edge-js'),
       uuidV4   = require('uuid/v4'),
       Getopt   = require('node-getopt'),
       version  = '20210421-1644',
-      defaults = { privkeysmap : 'PrivateKeys', pubkeysmap: 'NonSecrets', kidmap: 'NonSecrets' },
+      defaults = { privkeysmap : 'kvm_jwt'} //, pubkeysmap: 'NonSecrets', kidmap: 'NonSecrets'
       getopt   = new Getopt(common.commonOptions.concat([
         ['e' , 'env=ARG', 'required. the Edge environment for which to store the KVM data'],
         ['b' , 'keystrength=ARG', 'optional. strength in bits of the RSA keypair. Default: 2048'],
@@ -54,13 +54,13 @@ function loadKeysIntoMap(org) {
   common.logWrite(sprintf('provisioning new key %s', uuid));
   return org.kvms.put(options)
     .then(_ => {
-    options.kvm = opt.options.pubkeysmap;
+    options.kvm = opt.options.privkeysmap;
     options.key = 'public__' + uuid;
     options.value = publicKeyPem;
       return org.kvms.put(options);
     })
     .then(_ => {
-      options.kvm = opt.options.kidmap;
+      options.kvm = opt.options.privkeysmap;
       options.key = 'currentKid';
       options.value = uuid;
       return org.kvms.put(options);
@@ -101,14 +101,14 @@ if ( !opt.options.privkeysmap ) {
   common.logWrite(sprintf('defaulting to %s for privkeys map', defaults.privkeysmap));
   opt.options.privkeysmap = defaults.privkeysmap;
 }
-if ( !opt.options.pubkeysmap ) {
-  common.logWrite(sprintf('defaulting to %s for pubkeys map', defaults.pubkeysmap));
-  opt.options.pubkeysmap = defaults.pubkeysmap;
-}
-if ( !opt.options.kidmap ) {
-  common.logWrite(sprintf('defaulting to %s for kid map', defaults.kidmap));
-  opt.options.kidmap = defaults.kidmap;
-}
+//if ( !opt.options.pubkeysmap ) {
+//  common.logWrite(sprintf('defaulting to %s for pubkeys map', defaults.pubkeysmap));
+//  opt.options.pubkeysmap = defaults.pubkeysmap;
+//}
+//if ( !opt.options.kidmap ) {
+//  common.logWrite(sprintf('defaulting to %s for kid map', defaults.kidmap));
+//  opt.options.kidmap = defaults.kidmap;
+//}
 
 if ( ! opt.options.keystrength ) {
   opt.options.keystrength = 2048; // default
@@ -124,9 +124,7 @@ apigee
     return org.kvms.get({ env: opt.options.env })
       .then( result => {
 
-        let missingMaps = [opt.options.privkeysmap,
-                           opt.options.pubkeysmap,
-                           opt.options.kidmap]
+        let missingMaps = [opt.options.privkeysmap]
           .filter(value => result.indexOf(value) == -1)
           .filter(dedupe);
 
