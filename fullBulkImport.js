@@ -66,10 +66,13 @@ function importAssets(org, type){
         let assetName = path.parse(filename).name,
             filepath = path.join(opt.options.destination, type, filename);
         if (existingAssets.indexOf(assetName) == -1){
-          org[type].import({name:assetName, source:filepath}).catch( e => console.error('error: ' + util.format(e) ) );
+          org[type].import({name:assetName, source:filepath})
+          .catch( e => console.error('error: ' + util.format(e) ) );
         } else {
           common.logWrite('%s "%s" already exists', type, assetName);
         }
+        org[type].deploy({ name: assetName, environment: opt.options.env })
+          .catch( e => console.error('error: ' + util.format(e) ) );
       })
     })
   );
@@ -79,6 +82,120 @@ if ( ! opt.options.entity) {
   opt.options.entity = defaults.entity;
 }
 apigee.connect(common.optToOptions(opt))
+
+  .then(org => {
+    if(opt.options.entity == "DELETE_developerapps"){
+      org.developers.get({}).then(developers => {
+        developers.developer.map(d => d.email).forEach(email =>{
+          org.developerapps.get({email:email}).then(apps =>{
+            if (apps && apps.app){
+              deleted = true;
+              apps.app.forEach(app => org.developerapps.del({app:app.appId, email}))
+            }
+          })}
+        )
+      })
+    }
+    return org;
+  })
+
+  .then(org => {
+    if(opt.options.entity == "all" || opt.options.entity == "developerapps"){
+      org.developers.get({}).then(developers => {
+        let type = "developerapps",
+        email = developers.developer[0].email; // Will take the first one we find and will fail if no one exist.
+        listExported(type)
+          .then(filenames => {
+              filenames.forEach(filename => readFileAsJson(type, filename).then(data => {
+                //
+                // api management cannot let you define the developer id when you create it.
+                // Since the app is linked to developer with it's id, this won't be handled automatically
+                //
+                //
+                // Force the developerId with the first one found just before
+                //
+                Object.assign(data, { email });
+                // create an app with a default credential without any proxies
+                org.developerapps.import(data).then(badlyCreated =>{
+                  let promises = []
+                  // add all migrated credentials.
+                  data.credentials.forEach(credential => {
+                    if(credential.status != "revoked" && (Date.now() < credential.expiresAt || credential.expiresAt == -1)){
+                      promises.push(org.appcredentials.add({
+                        email,
+                        appName: data.name,
+                        apiProducts: credential.apiProducts.map(c => c.apiproduct),
+                        consumerKey: credential.consumerKey,
+                        consumerSecret: credential.consumerSecret,
+                        expiresInSeconds: credential.expiresAt == -1 ? -1 : Math.round((credential.expiresAt - Date.now()) / 1000)
+                      })
+                      .catch( e => console.error('error: ' + util.format(e) ) ));
+                    }
+                  });
+                  // when all known credentials are created, delete the one automatically created.
+                  Promise.all(promises).then(dontcare => {
+                    return org.appcredentials.del({
+                     email,
+                     appName: data.name,
+                     key: badlyCreated.credentials.filter(c => !c.apiProducts)[0].consumerKey
+                    })
+                    .catch( e => console.error('error: ' + util.format(e) ) )
+                  })
+                  .catch( e => console.error('error: ' + util.format(e) ) );
+                })
+                .catch( e => console.error('error: ' + util.format(e) ) );
+            }))
+          })
+      });
+    }
+    return org;
+  })
+  .then(org => {
+    if(opt.options.entity == "all" || opt.options.entity == "products"){
+      let type = "products";
+      listExported(type)
+        .then(filenames =>
+          org.products.get({}).then(productsResponse => {
+          let products = (productsResponse && productsResponse.apiProduct) ? productsResponse.apiProduct.map((a) => a.name) : [];
+            filenames.forEach(filename => readFileAsJson(type, filename).then(data => {
+              if(products.indexOf(data.name) == -1){
+                org.products.create(data)
+                .catch( e => console.error('error: ' + util.format(e) ) );
+              } else {
+                common.logWrite('Product "%s" already exists', data.name);
+              }
+            }))
+          })
+        );
+    }
+    return org;
+  })
+//
+// api management cannot let you define the developer id.
+// Since the app is linked to developer with it's id, this won't be handled automatically
+//
+//  .then(org => {
+//    if(opt.options.entity == "all" || opt.options.entity == "developers"){
+//      let type = "developers";
+//      listExported(type)
+//        .then(filenames =>
+//          org.developers.get({}).then(response => {
+//          console.log(response)
+//          let developers = (response && response.developer) ? response.developer.map((a) => a.email.toLowerCase()) : [];
+//          console.log(developers)
+//            filenames.forEach(filename => readFileAsJson(type, filename).then(data => {
+//              if(developers.indexOf(data.email.toLowerCase()) == -1){
+//                org.developers.create(data)
+//                .catch( e => console.error('error: ' + util.format(e) ) );
+//              } else {
+//                common.logWrite('Developer "%s" already exists', data.email);
+//              }
+//            }))
+//          })
+//        );
+//    }
+//    return org;
+//  })
   .then(org => {
     if(opt.options.entity == "all" || opt.options.entity == "sharedflows"){
       importAssets(org, "sharedflows")

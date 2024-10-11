@@ -151,7 +151,6 @@ const findDeployedRevision = (org, type, name) =>
   .catch(e => null);
 
 const exportCertificate = async (org, env, name, cert, retries, delay) => {
-console.log("ici")
   org.keystores.exportCert({env, name, cert})
   .then(certificate => {
     exportToFile("certificates", cert + ".crt", certificate);
@@ -170,6 +169,26 @@ console.log("ici")
 
 
 apigee.connect(common.optToOptions(opt))
+//
+// api management cannot let you define the developer id.
+// Since the app is linked to developer with it's id, this won't be handled automatically
+//
+//    .then(org => {
+//        if(opt.options.entity == "all" || opt.options.entity == "developers"){
+//            org.developers.get({})
+//                .then(resp => {
+//                    addToSummary({"name":"developers", "found": resp.length});
+//                    resp.forEach(devEmail => {
+//                        org.developers.get({"id": devEmail})
+//                            .then(dev => {
+//                                exportToJsonFile("developers", devEmail, dev);
+//                                addToSummary({"name":"developers", "exported": 1});
+//                            })
+//                    })
+//                })
+//        }
+//        return org;
+//    })
     .then(org => {
         if(opt.options.entity == "all" || opt.options.entity == "apps"){
             org.apps.get({})
@@ -186,6 +205,28 @@ apigee.connect(common.optToOptions(opt))
         }
         return org;
     })
+    .then(org => {
+        if(opt.options.entity == "all" || opt.options.entity == "developerapps"){
+            org.developers.get({})
+                .then(respDev => {
+                    respDev.forEach(email => {
+                      org.developerapps.get({email})
+                          .then(resp => {
+                              addToSummary({"name":"developerapps", "found": resp.length});
+                              resp.forEach(name => {
+                                  org.developerapps.get({email, name})
+                                      .then(app => {
+                                          exportToJsonFile("developerapps", app.name, app);
+                                          addToSummary({"name":"developerapps", "exported": 1});
+                                      })
+                              })
+                          })
+                    })
+                })
+        }
+        return org;
+    })
+
     .then(org => {
         if(opt.options.entity == "all" || opt.options.entity == "products"){
             org.products.get({})
@@ -331,7 +372,7 @@ apigee.connect(common.optToOptions(opt))
         }
         return org;
     })
-    .then(org => {
-        setTimeout(() => common.logWrite(JSON.stringify(summary, null, 2)), 20000)
-    })
+//    .then(org => {
+//        setTimeout(() => common.logWrite(JSON.stringify(summary, null, 2)), 30000)
+//    })
     .catch( e => console.error('error: ' + util.format(e) ) );
