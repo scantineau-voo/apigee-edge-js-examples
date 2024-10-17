@@ -13,7 +13,7 @@ const apigeejs   = require('apigee-edge-js'),
       RETRY_DELAY= 1000,
       MAX_RETRY= 10,
       defaults   = {
-        destination : 'exported-', // + timeString(),
+        destination : 'exported-' + timeString(),
         entity : 'all',
       },
       getopt     = new Getopt(common.commonOptions.concat([
@@ -308,11 +308,14 @@ apigee.connect(common.optToOptions(opt))
                         org.kvms.get({"env": opt.options.env, name})
                         .then(kvm => {
                             if (kvm.encrypted){
+                                exportToJsonFile("encrypted_kvms", name, kvm);
+                                addToSummary({"name":"encrypted_kvms", "exported": 1});
                                 common.logWrite(sprintf('The kvm %s is encrypted', name));
-                                return kvm;
-                            }
-                            exportToJsonFile("kvms", name, kvm);
+                            } else {
+                                exportToJsonFile("kvms", name, kvm);
                                 addToSummary({"name":"kvms", "exported": 1});
+                            }
+                            return kvm;
                         })
                     })
 

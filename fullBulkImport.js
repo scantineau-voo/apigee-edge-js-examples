@@ -67,12 +67,13 @@ function importAssets(org, type){
             filepath = path.join(opt.options.destination, type, filename);
         if (existingAssets.indexOf(assetName) == -1){
           org[type].import({name:assetName, source:filepath})
+          .then(dontcare => org[type].deploy({ name: assetName, environment: opt.options.env }))
           .catch( e => console.error('error: ' + util.format(e) ) );
         } else {
-          common.logWrite('%s "%s" already exists', type, assetName);
+          common.logWrite('%s "%s" already exists. Will only try to deploy it', type, assetName);
+          org[type].deploy({ name: assetName, environment: opt.options.env })
+            .catch( e => console.error('error: ' + util.format(e) ) );
         }
-        org[type].deploy({ name: assetName, environment: opt.options.env })
-          .catch( e => console.error('error: ' + util.format(e) ) );
       })
     })
   );
